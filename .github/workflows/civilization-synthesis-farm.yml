@@ -1,0 +1,73 @@
+name: CEREBRON Farm 43 Civilization Synthesis
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  agents:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - {idx: 1, role: SYSTEMS_SYNTHESIS_ARCHITECT, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 2, role: CROSS_DOMAIN_INTEGRATOR, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 3, role: EVIDENCE_HIERARCHY_AUDITOR, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 4, role: PROVENANCE_GUARDIAN, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 5, role: CONTRADICTION_SYNTHESIZER, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 6, role: UNCERTAINTY_MAPPER, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 7, role: DEPENDENCY_GRAPH_ANALYST, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 8, role: BOTTLENECK_ANALYST, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 9, role: RESOURCE_SYSTEMS_ANALYST, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 10, role: INFRASTRUCTURE_SYNTHESIS_ANALYST, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 11, role: ENERGY_SYSTEMS_SYNTHESIZER, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 12, role: INDUSTRIAL_SYSTEMS_SYNTHESIZER, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 13, role: SCIENCE_TECHNOLOGY_SYNTHESIZER, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 14, role: ECONOMIC_SYSTEMS_SYNTHESIZER, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 15, role: GOVERNANCE_CONSTRAINT_ANALYST, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 16, role: HUMAN_SYSTEMS_SYNTHESIZER, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 17, role: FAILURE_PROPAGATION_ANALYST, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 18, role: RESILIENCE_SYNTHESIS_ANALYST, model: huggingface-projects/gemma-2-9b-it}
+          - {idx: 19, role: DECISION_SYNTHESIS_ANALYST, model: huggingface-projects/llama-3.2-3B-Instruct}
+          - {idx: 20, role: OMEGA_CIVILIZATION_SYNTHESIS_JUDGE, model: huggingface-projects/gemma-2-9b-it}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q hf-gradio
+      - run: python worker/agent.py
+        env:
+          ROLE: ${{ matrix.role }}
+          MODEL: ${{ matrix.model }}
+          IDX: ${{ matrix.idx }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: farm43-${{ matrix.role }}
+          path: result.json
+  omega:
+    if: always()
+    needs: agents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: farm43-*
+          path: results
+          merge-multiple: false
+      - name: Build Omega packet
+        run: |
+          python - <<'PY'
+          import glob,json,pathlib
+          rows=[]
+          for f in glob.glob('results/**/result.json',recursive=True):
+              try: rows.append(json.load(open(f)))
+              except Exception as e: rows.append({'inference_success':False,'status':'ARTIFACT_PARSE_FAILED','file':f,'error':str(e)})
+          ok=[r for r in rows if r.get('inference_success') is True and r.get('status')=='UNREVIEWED_EXTERNAL_AGENT_OUTPUT']
+          packet={'farm':43,'name':'civilization-synthesis','roles_received':len(rows),'successful_external_ai_calls':len(ok),'failed_external_ai_calls':len(rows)-len(ok),'status':'UNREVIEWED_EXTERNAL_AGENT_OUTPUT','rules':['REALITY>COHERENCE','CLAIM<=EVIDENCE','SYNTHESIS!=VALIDATION','UNKNOWN REMAINS UNKNOWN'],'rows':rows}
+          pathlib.Path('omega').mkdir(); pathlib.Path('omega/packet.json').write_text(json.dumps(packet,ensure_ascii=False,indent=2))
+          print(json.dumps({k:packet[k] for k in ('roles_received','successful_external_ai_calls','failed_external_ai_calls','status')},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: civilization-synthesis-farm-43-omega-packet
+          path: omega/packet.json
