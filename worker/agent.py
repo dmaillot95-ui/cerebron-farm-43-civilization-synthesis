@@ -1,4 +1,6 @@
-import hashlib,json,os,pathlib,subprocess
+import hashlib,json,os,pathlib,subprocess,sys
+sys.path.append('worker')
+from registry_loader import load_registry
 PREFERRED=['/generate','/chat','/predict','/respond','/infer','/run']
 def run(cmd,timeout=240):
     return subprocess.run(cmd,capture_output=True,text=True,timeout=timeout)
@@ -41,8 +43,12 @@ def invoke(space,prompt):
         errors.append((ep,(pred.stderr or pred.stdout)[-1500:]))
     return False,'',{'errors':errors}
 role=os.environ['ROLE']; space=os.environ['MODEL']; idx=os.environ.get('IDX','0')
-prompt=f'''You are role {role} in CEREBRON OMEGA FARM 43 CIVILIZATION SYNTHESIS. Synthesize complex cross-domain evidence while preserving provenance, contradictions, uncertainty and dependency structure. Never convert coherence into truth. Separate ESTABLISHED / DERIVED / CONJECTURAL / SPECULATIVE. Identify unresolved conflicts, hidden assumptions, bottlenecks, decision-relevant uncertainties, and minimal decisive tests. SYNTHESIS != VALIDATION. SAME MODEL/DATA != INDEPENDENT EVIDENCE. Return a concise structured analysis for role {role}.'''
+registry_context,registry_meta=load_registry(['constitution','meta_core','macrograins','disciplines','super_disciplines','supra','keys','banks'])
+prompt=f'''You are role {role} in CEREBRON OMEGA FARM 43 CIVILIZATION SYNTHESIS. Synthesize complex cross-domain evidence while preserving provenance, contradictions, uncertainty and dependency structure. Never convert coherence into truth. Separate ESTABLISHED / DERIVED / CONJECTURAL / SPECULATIVE. Identify unresolved conflicts, hidden assumptions, bottlenecks, decision-relevant uncertainties, and minimal decisive tests. SYNTHESIS != VALIDATION. SAME MODEL/DATA != INDEPENDENT EVIDENCE. Return a concise structured analysis for role {role}.
+
+C42 SHARED CONTEXT — guidance only; not self-certifying evidence:
+{registry_context}'''
 ok,text,meta=invoke(space,prompt)
-out={'farm':43,'role':role,'index':idx,'model':space,'inference_success':ok,'status':'UNREVIEWED_EXTERNAL_AGENT_OUTPUT' if ok else 'EXTERNAL_INFERENCE_FAILED','output':text if ok else '','meta':meta}
+out={'farm':43,'role':role,'index':idx,'model':space,'inference_success':ok,'status':'UNREVIEWED_EXTERNAL_AGENT_OUTPUT' if ok else 'EXTERNAL_INFERENCE_FAILED','output':text if ok else '','meta':meta,'registry_runtime':registry_meta}
 pathlib.Path('result.json').write_text(json.dumps(out,ensure_ascii=False,indent=2))
 print(json.dumps(out,ensure_ascii=False))
